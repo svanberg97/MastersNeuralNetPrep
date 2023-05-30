@@ -1,0 +1,254 @@
+%% Extracting data, and identifying the usable data
+
+% Get the current folder
+folder = pwd;
+
+% Define the paths of the left and right step folders
+leftStepFolder = 'C:\Users\Svanberg\Documents\MATLAB\Master\AllMat\RIGHTSTANCE';
+rightStepFolder = 'C:\Users\Svanberg\Documents\MATLAB\Master\AllMat\LEFTSTANCE';
+otherFolder = 'C:\Users\Svanberg\Documents\MATLAB\Master\AllMat\decrease\other';
+
+% Loop through each MAT file
+for i = 1:numel(matFiles)
+    filename = fullfile(Folder, matFiles(i).name);
+    matData = load(filename);
+    
+    % Access the structure field names
+    fieldNames = fieldnames(matData);
+    
+    % Find the field name containing the desired force data
+    forceFieldName = '';
+    for j = 1:numel(fieldNames)
+        if isfield(matData.(fieldNames{j}), 'Force')
+            forceFieldName = fieldNames{j};
+            break;
+        end
+    end
+    
+    % Access the Force data for Platform 1
+    if ~isempty(forceFieldName)
+        Platform1 = matData.(forceFieldName)(1).Force;
+        
+        % Extract the desired variables from Platform1
+        Platform1_force = squeeze(Platform1(1).Force)';
+        Platform2_force = squeeze(Platform1(2).Force)';
+
+    end
+
+        % Filter data above 10
+filteredIndices = Platform1_force(:, 3) > 10;
+filteredForce = Platform1_force(filteredIndices, :);
+
+  % Find the field name containing the positions data
+                positionsFieldName = '';
+                for k = 1:numel(fieldNames)
+                    if isfield(matData.(fieldNames{k}), 'Trajectories') && isfield(matData.(fieldNames{k}).Trajectories, 'Labeled') && isfield(matData.(fieldNames{k}).Trajectories.Labeled, 'Data')
+                        positionsFieldName = fieldNames{k};
+                        break;
+                    end
+                end
+
+                      % Check if the positions field name is found
+                if ~isempty(positionsFieldName)
+
+                    % Access the positions data
+                    Positions = matData.(positionsFieldName).Trajectories.Labeled.Data;
+
+                    % Transpose the positions matrix to dimensions x nsamples
+                    Positions = permute(Positions, [2 3 1]);
+
+                    % Extract the desired marker data from transposed positions matrix
+                    R_FLE = squeeze(Positions(:, :, 17))';
+                    R_TTC = squeeze(Positions(:, :, 20))';
+                    R_FM5 = squeeze(Positions(:, :, 26))';
+                    R_FTC = squeeze(Positions(:, :, 16))';
+                    SXS = squeeze(Positions(:, :, 29))';
+                    R_FCC = squeeze(Positions(:, :, 23))';
+
+                   % Save filtered force and position data for x, y and z
+filteredData.R_FLE = R_FLE(:, 1:3); 
+filteredData.R_TTC = R_TTC(:, 1:3); 
+filteredData.R_FM5 = R_FM5(:, 1:3);  
+filteredData.R_FTC = R_FTC(:, 1:3);  
+filteredData.SXS = SXS(:, 1:3);      
+filteredData.R_FCC = R_FCC(:, 1:3);  
+filteredData.filteredForce = filteredForce(:, 1:3)
+filteredData.filteredForce2 = filteredForce2(:, 1:3)
+
+% Copy the file to the corresponding folder
+[~, baseFilename, ext] = fileparts(filename);
+
+% Specify the data interval for forceplate location
+startValue = 0;
+endValue = 450;
+
+% Get the indices where the x-values for the R_FCC marker are inside Forceplate1
+intervalIndices = R_FCC(:, 1) >= startValue & R_FCC(:, 1) <= endValue;
+
+% Calculate the mean difference in the 3rd column for the specified rows
+meanDiff = mean(L_FCC(intervalIndices, 3) - R_FCC(intervalIndices, 3));
+
+% Determine the conditions for assigning the destination folder
+isRightStep = meanDiff > 0;
+isLeftStep = meanDiff < 0;
+isIncreasingTV10 = all(diff(TV10(:, 1)) > 0);
+isDecreasingTV10 = all(diff(TV10(:, 1)) < 0);
+
+if isRightStep && isIncreasingTV10
+    destinationFolder = rightStepFolder; % Specifying the folder for right steps with increasing TV10
+elseif ~isLeftStep && isIncreasingTV10
+    destinationFolder = leftStepFolder; % Specifying the folder for left steps with increasing TV10
+elseif isDecreasingTV10
+    destinationFolder = otherFolder; % Specifying the folder for files with decreasing TV10
+else
+    destinationFolder = otherFolder; % Specifying the folder for files that don't meet the above conditions
+end
+
+destinationPath = fullfile(destinationFolder, [baseFilename, ext]);
+save(destinationPath, 'R_FLE', 'R_TTC', 'R_FM5', 'R_FTC', 'SXS', 'R_FCC', 'filteredForce', 'filteredForce2');
+disp(['File saved to: ' destinationPath]);
+
+                end
+    end
+end
+
+%% Resampling, normalizing and creating matrixes for time series app
+        
+        % Get a list of all .mat files in the folder
+fileList = dir(fullfile(folder, '*.mat'));
+numFiles = numel(fileList);
+
+% Initialize variables to store the concatenated data
+concatenatedfilteredForce = [];
+concatenatedR_FLE = [];
+concatenatedR_TTC = [];
+concatenatedR_FM5 = [];
+concatenatedR_FTC = [];
+concatenatedSXS = [];
+concatenatedR_FCC = [];
+
+
+% Define body weight for each participant to use for normalization of force
+% data
+bodyWeight = {
+    '2014001', 67;  
+    '2014002', 65.4; 
+    '2014003', 50;
+    '2014004', 72.5;
+    '2014005', 73.5;
+    '2014006', 73;
+    '2014007', 65;
+    '2014008', 57.1;
+    '2014009', 86;
+    '2014011', 63.4;
+    '2014013', 61.3;
+    '2014014', 92;
+    '2014015', 67;
+    '2014019', 73.8;
+    '2014022', 59.8;
+    '2014024', 87.5;
+    '2014025', 80.5;
+    '2014029', 89.9;
+    '2014030', 60.7;
+    '2014031', 67.2;
+    '2014033', 63.5;
+    '2014040', 56.5;
+    '2014046', 61.8;
+    '2014048', 61.5;
+    '2014049', 72.2;
+    '2014050', 61.9;
+    '2014051', 88;
+    '2014053', 62.8;
+    '2015002', 74;
+    '2015003', 87.2;
+    '2015004', 62;
+    '2015005', 89.4;
+    '2015007', 60.2;
+    '2015013', 73;
+    '2015015', 68;
+    '2015017', 60.5;
+    '2015020', 95;
+    '2015021', 58;
+    '2015027', 65.5;
+    '2015032', 50.8;
+    '2015041', 74.8;
+    '2015042', 98;
+};
+
+% Loop through each file
+for i = 1:numFiles
+    % Load the file
+    filename = fullfile(folder, fileList(i).name);
+    load(filename);
+
+
+% Resample the data from each recording to 150 samples
+        filteredForceRS = resample(filteredForce, 150, size(filteredForce, 1));        
+        R_FLERS = resample(R_FLE(:, 1:3), 150, size(R_FLE, 1));
+        R_TTCRS = resample(R_TTC(:, 1:3), 150, size(R_TTC, 1));
+        R_FM5RS = resample(R_FM5(:, 1:3), 150, size(R_FM5, 1));
+        R_FTCRS = resample(R_FTC(:, 1:3), 150, size(R_FTC, 1));
+        SXSRS = resample(SXS(:, 1:3), 150, size(SXS, 1));
+        R_FCCRS = resample(R_FCC(:, 1:3), 150, size(R_FCC, 1));
+
+
+  % Extract participant ID from the file name
+    participantID = fileList(i).name(1:7);
+
+    disp(['Processing file: ' fileList(i).name]);
+    disp(['Participant ID: ' participantID]);
+
+    % Find the body weight for the current participant
+    participantIndex = find(strcmp(participantID, bodyWeight(:, 1)));
+    if isempty(participantIndex)
+        error(['Body weight not defined for participant: ' participantID]);
+    end
+    participantBW = bodyWeight{participantIndex, 2};
+    
+    disp(['Participant body weight: ' num2str(participantBW)]);
+
+    % Normalize the force data by dividing by body weight
+    normalizedForce = filteredForceRS(:, 1:3) / participantBW;
+
+ % Normalize the position data by setting each marker at 0,0,0 at the start of each recording, so all position data will in fact be
+ %representing dislocation from starting point
+    startPosition = R_FLERS(1, 1:3);
+    R_FLERS = R_FLERS - startPosition;
+    startPosition = R_TTCRS(1, 1:3);
+    R_TTCRS = R_FLERS - startPosition;
+    startPosition = R_FM5RS(1, 1:3);
+    R_FM5RS = R_FM5RS - startPosition;
+    startPosition = R_FTCRS(1, 1:3);
+    R_FTCRS = R_FTCRS - startPosition;
+    startPosition = SXSRS(1, 1:3);
+    SXSRS = SXSRS - startPosition;
+    startPosition = R_FCCRS(1, 1:3);
+    R_FCCRS = R_FCCRS - startPosition;
+
+
+     % Concatenate the data for each variable
+        concatenatedfilteredForce = [concatenatedfilteredForce; normalizedForce];
+        concatenatedR_FLE = [concatenatedR_FLE; R_FLERS(:, 1:3)];
+        concatenatedR_TTC = [concatenatedR_TTC; R_TTCRS(:, 1:3)];
+        concatenatedR_FM5 = [concatenatedR_FM5; R_FM5RS(:, 1:3)];
+        concatenatedR_FTC = [concatenatedR_FTC; R_FTCRS(:, 1:3)];
+        concatenatedSXS = [concatenatedSXS; SXSRS(:, 1:3)];
+        concatenatedR_FCC = [concatenatedR_FCC; R_FCCRS(:, 1:3)];
+
+ % Create predictor matrix for position data
+        positionPredictorMatrix = [concatenatedR_FLE, concatenatedR_TTC, concatenatedR_FM5, concatenatedR_FTC, concatenatedSXS, concatenatedR_FCC];
+
+  % Create response matrix for vGRF data
+         zFP1 = concatenatedfilteredForce(:, 3)
+end
+
+%% Plotting all data on top of each other
+
+
+
+
+
+
+
+
+
