@@ -91,15 +91,15 @@ meanDiff = mean(L_FCC(intervalIndices, 3) - R_FCC(intervalIndices, 3));
 % Determine the conditions for assigning the destination folder
 isRightStep = meanDiff > 0;
 isLeftStep = meanDiff < 0;
-isIncreasingTV10 = all(diff(TV10(:, 1)) > 0);
-isDecreasingTV10 = all(diff(TV10(:, 1)) < 0);
+isIncreasingSXS = all(diff(TV10(:, 1)) > 0);
+isDecreasingSXS = all(diff(TV10(:, 1)) < 0);
 
-if isRightStep && isIncreasingTV10
-    destinationFolder = rightStepFolder; % Specifying the folder for right steps with increasing TV10
-elseif ~isLeftStep && isIncreasingTV10
-    destinationFolder = leftStepFolder; % Specifying the folder for left steps with increasing TV10
-elseif isDecreasingTV10
-    destinationFolder = otherFolder; % Specifying the folder for files with decreasing TV10
+if isRightStep && isIncreasingSXS
+    destinationFolder = rightStepFolder; % Specifying the folder for right steps with increasing SXS
+elseif ~isLeftStep && isIncreasingSXS
+    destinationFolder = leftStepFolder; % Specifying the folder for left steps with increasing SXS
+elseif isDecreasingSXS
+    destinationFolder = otherFolder; % Specifying the folder for files with decreasing SXS
 else
     destinationFolder = otherFolder; % Specifying the folder for files that don't meet the above conditions
 end
