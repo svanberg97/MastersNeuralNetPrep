@@ -1,0 +1,78 @@
+% Define the prediction and response data
+positionPredictorMatrix = positionPredictorMatrix;
+zFP1 = zFP1;
+
+% Data division ratios for closest number of full recordings to 15% for validation and test data
+trainRatio = 0.704;
+valRatio = 0.148;
+testRatio = 0.148;
+
+
+
+% Define the number of neurons in the hidden layer and time delay
+numHiddenNeurons = 15;
+timeDelay = 10;
+
+% Create a time series network
+net = timedelaynet(1:timeDelay, numHiddenNeurons, 'trainbr');
+
+% Set the data division parameters
+net.divideFcn = 'divideind'; % Use divideind for index based division
+
+% Determining the number of samples and time steps
+[numSamples, numTimeSteps] = size(positionPredictorMatrix);
+
+% Determine the number of training, validation, and test samples
+numTrain = round(trainRatio * numSamples);
+numVal = round(valRatio * numSamples);
+numTest = numSamples - numTrain - numVal;
+
+% Generate the indices for data division
+ind = 1:numSamples;
+trainInd = ind(1:numTrain);
+valInd = ind(numTrain+1:numTrain+numVal);
+testInd = ind(numTrain+numVal+1:end);
+
+% Set the data division indices
+net.divideParam.trainInd = trainInd;
+net.divideParam.valInd = valInd;
+net.divideParam.testInd = testInd;
+
+% Prepare the data for training
+trainInputs = con2seq(positionPredictorMatrix(trainInd, :)');
+trainTargets = con2seq(zFP1(trainInd)');
+
+valInputs = con2seq(positionPredictorMatrix(valInd, :)');
+valTargets = con2seq(zFP1(valInd)');
+
+testInputs = con2seq(positionPredictorMatrix(testInd, :)');
+testTargets = con2seq(zFP1(testInd)');
+
+% Train the network
+[net, tr] = train(net, trainInputs, trainTargets);
+
+% Perform predictions using the trained network
+trainOutputs = net(trainInputs);
+valOutputs = net(valInputs);
+testOutputs = net(testInputs);
+
+% Calculate MSE and correlation coefficients
+trainMSE = perform(net, trainTargets, trainOutputs);
+valMSE = perform(net, valTargets, valOutputs);
+testMSE = perform(net, testTargets, testOutputs);
+
+trainR = corrcoef(cell2mat(trainTargets), cell2mat(trainOutputs));
+valR = corrcoef(cell2mat(valTargets), cell2mat(valOutputs));
+testR = corrcoef(cell2mat(testTargets), cell2mat(testOutputs));
+
+trainR = trainR(1, 2);
+valR = valR(1, 2);
+testR = testR(1, 2);
+
+% Display the MSE and correlation coefficients
+disp(['Training MSE: ' num2str(trainMSE)]);
+disp(['Validation MSE: ' num2str(valMSE)]);
+disp(['Testing MSE: ' num2str(testMSE)]);
+disp(['Training R: ' num2str(trainR)]);
+disp(['Validation R: ' num2str(valR)]);
+disp(['Testing R: ' num2str(testR)]);
