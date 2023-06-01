@@ -3,18 +3,16 @@ positionPredictorMatrix = positionPredictorMatrix;
 zFP1 = zFP1;
 
 % Data division ratios for closest number of full recordings to 15% for validation and test data
-trainRatio = 0.704;
-valRatio = 0.148;
-testRatio = 0.148;
-
-
+trainRatio = 0.8;
+valRatio = 0.1;
+testRatio = 0.1;
 
 % Define the number of neurons in the hidden layer and time delay
-numHiddenNeurons = 15;
-timeDelay = 10;
+numHiddenNeurons = 30;
+timeDelay = 30;
 
 % Create a time series network
-net = timedelaynet(1:timeDelay, numHiddenNeurons, 'trainbr');
+net = timedelaynet(1:timeDelay, numHiddenNeurons, 'trainscg');
 
 % Set the data division parameters
 net.divideFcn = 'divideind'; % Use divideind for index based division
